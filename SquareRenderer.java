@@ -1,0 +1,128 @@
+package np.nicolai.rubikscube;
+
+import android.opengl.GLES30;
+import android.opengl.GLES32;
+import android.opengl.GLSurfaceView;
+import android.os.Bundle;
+
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
+
+public class SquareRenderer implements GLSurfaceView.Renderer {
+
+/*    private float[] squareVertices=new float[]{
+            -0.3f,-0.15f,0.0f,
+            -0.3f, 0.15f,0.0f,
+             0.3f, 0.15f,0.0f,
+             0.3f,-0.15f,0.0f
+    };*/
+private float[] squareVertices = new float[]{       //here winding order ACW must be same in both triangle
+
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f,  // Bottom-left corner
+         0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,  // Bottom-right corner
+        -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f,  // Top-left corner
+
+         0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  // Bottom-left corner
+         0.5f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  // Top-right corner
+        -0.5f,  0.5f, 0.0f,  0.0f, 1.0f, 0.0f  // Top-left corner
+
+};
+
+
+
+
+    private final String vertex_shader_code = String.join("\n",
+            "#version 300 es\n",
+            "layout (location = 0) in vec3 position;\n",
+            "layout (location = 1) in vec3 vertexColors;\n",
+            "out vec3 v_vertexColors;\n",
+            "void main() {\n",
+            "    v_vertexColors=vertexColors;\n",
+            "    gl_Position = vec4(position, 1.0);\n",
+            "}"
+    );
+
+    private final String fragment_shader_code = String.join("\n",
+            "#version 300 es\n",
+            "precision mediump float;\n",
+            "in vec3 v_vertexColors;",
+            "out vec4 outColor;",
+            "void main() {\n",
+            "    outColor = vec4(v_vertexColors.r, v_vertexColors.g, v_vertexColors.b,  1.0);\n",
+            "}"
+    );
+
+    private FloatBuffer vertexBuffer;
+
+    private int program;
+
+    @Override
+    public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) {
+
+
+        ByteBuffer bb=ByteBuffer.allocateDirect(squareVertices.length*Float.BYTES);
+        bb.order(ByteOrder.nativeOrder());
+        vertexBuffer=bb.asFloatBuffer();
+        vertexBuffer.put(squareVertices);
+        vertexBuffer.position(0);
+
+
+        int vertexShader=loadShader(GLES32.GL_VERTEX_SHADER,vertex_shader_code);
+        int fragmentShader=loadShader(GLES32.GL_FRAGMENT_SHADER,fragment_shader_code);
+
+        program=GLES32.glCreateProgram();
+        GLES32.glAttachShader(program,vertexShader);
+        GLES32.glAttachShader(program,fragmentShader);
+        GLES32.glLinkProgram(program);
+        GLES32.glUseProgram(program);
+
+    }
+
+    @Override
+    public void onSurfaceChanged(GL10 gl10, int i, int i1) {
+        GLES32.glViewport(0, 0, i, i1);
+    }
+
+    @Override
+    public void onDrawFrame(GL10 gl10) {
+        GLES32.glClear(GLES32.GL_COLOR_BUFFER_BIT | GLES32.GL_DEPTH_BUFFER_BIT | GLES32.GL_STENCIL_BUFFER_BIT);
+        GLES32.glEnableVertexAttribArray(0);
+        GLES32.glEnableVertexAttribArray(1);
+
+        GLES32.glVertexAttribPointer(0, 3, GLES32.GL_FLOAT, false, 6*Float.BYTES, vertexBuffer.position(0));//6 * Float.BYTES represents the stride, which tells OpenGL how far it needs to jump to get to the next vertex's data.
+
+        GLES32.glVertexAttribPointer(1, 3, GLES32.GL_FLOAT, false, 6*Float.BYTES, vertexBuffer.position(3));
+
+        GLES32.glDrawArrays(GLES32.GL_TRIANGLES , 0, 6);
+
+        GLES32.glDisableVertexAttribArray(1);
+        GLES32.glDisableVertexAttribArray(0);
+    }
+
+
+    private int loadShader(int type, String shaderCode){
+        int shader=GLES32.glCreateShader(type);
+        GLES32.glShaderSource(shader,shaderCode);
+        GLES32.glCompileShader(shader);
+
+        int[] compiled=new int[1];
+        GLES32.glGetShaderiv(shader,GLES32.GL_COMPILE_STATUS,compiled,0);
+        if (compiled[0] == 0) {
+            GLES32.glDeleteShader(shader);
+            throw new RuntimeException("Error compiling shader: " + GLES32.glGetShaderInfoLog(shader));
+        }
+        return shader;
+    }
+
+
+}
